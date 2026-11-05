@@ -15,6 +15,17 @@ const config = require('./config');
 const logger = require('./config/logger');
 const syncWorker = require('./workers/syncWorker');
 
+// Catch any uncaught errors and print to Render logs
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err.message, err.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled Rejection:', reason);
+  process.exit(1);
+});
+
 let serverInstance = null;
 
 async function start() {
@@ -23,14 +34,14 @@ async function start() {
     await connectDB();
     logger.info('[Backend] Connected to MongoDB');
 
-    // 2. Start Express API Server
-    serverInstance = app.listen(config.port, () => {
+    // 2. Start Express API Server (Listen on 0.0.0.0 for Render / Cloud host)
+    serverInstance = app.listen(config.port, '0.0.0.0', () => {
       logger.info(`[Backend] Express API Server running on port ${config.port}`, {
-        url: `http://localhost:${config.port}`,
+        url: `http://0.0.0.0:${config.port}`,
         env: config.env,
       });
       console.log(`\n======================================================`);
-      console.log(`  🚀 CP Analyzer Backend API running at: http://localhost:${config.port}`);
+      console.log(`  🚀 CP Analyzer Backend API running at: http://0.0.0.0:${config.port}`);
       console.log(`  ⚙️  Background Sync Worker is ACTIVE & listening for jobs`);
       console.log(`======================================================\n`);
     });
@@ -40,6 +51,7 @@ async function start() {
     logger.info('[Backend] Background Sync Worker started successfully');
 
   } catch (err) {
+    console.error('[Backend] Startup failed:', err.message, err.stack);
     logger.error('[Backend] Startup failed', { error: err.message });
     process.exit(1);
   }
